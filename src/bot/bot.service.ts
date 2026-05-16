@@ -60,12 +60,13 @@ export class BotService {
   // ─── Business lookup ───────────────────────────────────────────────────────
 
   private async getBusinessByPhoneNumberId(phoneNumberId: string): Promise<Business | null> {
-    const { data } = await this.supabase.db
+    const { data, error } = await this.supabase.db
       .from('businesses')
       .select('id, name, wa_phone_number_id, wa_access_token, avg_minutes_per_patient')
       .eq('wa_phone_number_id', phoneNumberId)
       .limit(1)
       .maybeSingle();
+    if (error) this.logger.error(`Business lookup error: ${JSON.stringify(error)}`);
     return data ?? null;
   }
 
