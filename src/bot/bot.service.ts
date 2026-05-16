@@ -64,7 +64,8 @@ export class BotService {
       .from('businesses')
       .select('id, name, wa_phone_number_id, wa_access_token, avg_minutes_per_patient')
       .eq('wa_phone_number_id', phoneNumberId)
-      .single();
+      .limit(1)
+      .maybeSingle();
     return data ?? null;
   }
 
@@ -76,7 +77,7 @@ export class BotService {
       .select('state')
       .eq('business_id', businessId)
       .eq('phone', phone)
-      .single();
+      .maybeSingle();
 
     if (data) return data;
 
@@ -86,7 +87,7 @@ export class BotService {
       .select('id')
       .eq('business_id', businessId)
       .eq('phone', phone)
-      .single();
+      .maybeSingle();
 
     const state: SessionState = patient ? 'active' : 'awaiting_name';
     await this.supabase.db.from('sessions').insert({ business_id: businessId, phone, state });
@@ -111,7 +112,7 @@ export class BotService {
       .select('id, name')
       .eq('business_id', business.id)
       .eq('phone', from)
-      .single();
+      .maybeSingle();
 
     if (!patient) {
       await this.setSessionState(business.id, from, 'awaiting_name');
@@ -166,7 +167,7 @@ export class BotService {
       .eq('patient_id', patient.id)
       .eq('date', today)
       .in('status', ['waiting', 'serving'])
-      .single();
+      .maybeSingle();
 
     if (existing) {
       const wait = await this.calcWaitTime(business, existing.token_number);
@@ -186,7 +187,7 @@ export class BotService {
       .eq('date', today)
       .order('token_number', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     const tokenNumber = (lastToken?.token_number ?? 0) + 1;
 
@@ -228,7 +229,7 @@ export class BotService {
       .eq('patient_id', patient.id)
       .eq('date', today)
       .in('status', ['waiting', 'serving'])
-      .single();
+      .maybeSingle();
 
     if (!appt) {
       await this.send(business, from,
@@ -251,7 +252,7 @@ export class BotService {
       .eq('status', 'serving')
       .order('token_number', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     const currentServing = serving?.token_number ?? 0;
     const ahead = Math.max(0, appt.token_number - currentServing - 1);
@@ -278,7 +279,7 @@ export class BotService {
       .eq('patient_id', patient.id)
       .eq('date', this.todayDate())
       .in('status', ['waiting', 'serving'])
-      .single();
+      .maybeSingle();
 
     if (!appt) {
       await this.send(business, from, `📭 You have no active appointment to cancel.`);
@@ -319,7 +320,7 @@ export class BotService {
       .select('id, name')
       .eq('business_id', businessId)
       .eq('phone', phone)
-      .single();
+      .maybeSingle();
     return data ?? null;
   }
 
@@ -332,7 +333,7 @@ export class BotService {
       .eq('status', 'serving')
       .order('token_number', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     const current = serving?.token_number ?? 0;
     const ahead = Math.max(0, tokenNumber - current - 1);
