@@ -1,12 +1,13 @@
 import { Controller, Get, Post, Body, Query, Res } from '@nestjs/common';
-import express from 'express';
-import axios from 'axios';
+import type { Response } from 'express';
+import { BotService } from '../bot/bot.service';
 
 @Controller('webhook')
 export class WebhookController {
+  constructor(private readonly bot: BotService) {}
 
   @Get()
-  verify(@Query() query, @Res() res: express.Response) {
+  verify(@Query() query, @Res() res: Response) {
     const mode = query['hub.mode'];
     const token = query['hub.verify_token'];
     const challenge = query['hub.challenge'];
@@ -18,41 +19,24 @@ export class WebhookController {
   }
 
   @Post()
-  async receive(@Body() body, @Res() res: express.Response) {
-    const message = body.entry?.[0]
-      ?.changes?.[0]?.value
-      ?.messages?.[0];
+  async receive(@Body() body, @Res() res: Response) {
+    res.sendStatus(200); // Respond to Meta immediately
 
-    if (message?.type === 'text') {
+    try {
+      const entry = body?.entry?.[0];
+      const change = entry?.changes?.[0]?.value;
+      const phoneNumberId = change?.metadata?.phone_number_id;
+      const message = change?.messages?.[0];
+
+      if (!message || message.type !== 'text' || !phoneNumberId) return;
+
       const from = message.from;
-      const text = message.text.body.toLowerCase().trim();
+      const text = message.text.body;
 
-      console.log(`Message from ${from}: ${text}`);
-
-      if (text === 'book') {
-        await this.sendMessage(from, 'Your token is #1. Estimated time: 10:30 AM');
-      } else {
-        await this.sendMessage(from, 'Send "book" to get your appointment token.');
-      }
+      await this.bot.handleMessage(phoneNumberId, from, text);
+    } catch (err) {
+      // Already responded 200 to Meta — just log
+      console.error('Webhook processing error:', err);
     }
-
-    return res.sendStatus(200);
-  }
-
-  async sendMessage(to: string, text: string) {
-    await axios.post(
-      `https://graph.facebook.com/v25.0/${process.env.WA_PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: 'whatsapp',
-        to,
-        type: 'text',
-        text: { body: text }
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.WA_ACCESS_TOKEN}`
-        }
-      }
-    );
   }
 }
